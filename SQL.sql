@@ -260,7 +260,7 @@ SELECT
     NULL AS "DecommissionDate",
     NULL AS "AssetDisposalDate",
     NULL AS "AssetValuationType",
-    'TOTAL' AS "ValuationClass",                         -- Маркер підсумкового рядка
+    'TOTAL' AS "ValuationClass",                         
     
     -- Агрегація всіх вартісних показників
     SUM(t."AcquisitionAndProductionCostsBegin") AS "AcquisitionAndProductionCostsBegin",
