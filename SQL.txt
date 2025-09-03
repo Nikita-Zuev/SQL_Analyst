@@ -1,3 +1,5 @@
+-- CTE 1: ASSET - Витягування базової інформації про активи
+
 WITH Asset AS (
   SELECT
     t0.ID AS "ID",
@@ -6,93 +8,122 @@ WITH Asset AS (
     t1.ACCOUNT_DESCRIPTION AS "AccountDescription",
     t0.DESCRIPTION AS "Description",
     t0.DATE_OF_AQUISITION AS "DateOfAquisition",
-    t0.START_UP_DATE AS "StartUpDate",
-    t0.DECOMMISSION_DATE AS "DecommissionDate",
-    t0.ASSET_DISPOSAL_DATE AS "AssetDisposalDate",
-    t0.RESIDUAL_VALUE AS "ResidualValue"
+    t0.START_UP_DATE AS "StartUpDate",                    -- Дата початку використання
+    t0.DECOMMISSION_DATE AS "DecommissionDate",          -- Дата виведення з експлуатації
+    t0.ASSET_DISPOSAL_DATE AS "AssetDisposalDate",       -- Дата продажу/списання
+    t0.RESIDUAL_VALUE AS "ResidualValue"                 -- Залишкова вартість
   FROM SAFT.T_SAFT_MASTER_ASSET t0
   LEFT JOIN SAFT.T_SAFT_DOC_ASSET_TRANSACTION t1 ON t0.ASSETID = t1.ASSETID
 ),
+
+
+-- CTE 2: VALUATION - Отримання даних про оцінку та амортизацію активів
 
 Valuation AS (
   SELECT 
     t0.ID AS "ID",
     t0.ASSET_ID AS "Asset_ID",
     t0.ASSET_VALUATION_TYPE AS "AssetValuationType",
-    t0.VALUATION_CLASS AS "ValuationClass",
+    t0.VALUATION_CLASS AS "ValuationClass",              -- Класифікація для податкових цілей
+    
+    -- Вартісні показники
     t0.ACQUISITION_AND_PRODUCTION_COSTS_BEGIN AS "AcquisitionAndProductionCostsBegin",
     t0.ACQUISITION_AND_PRODUCTION_COSTS_END AS "AcquisitionAndProductionCostsEnd",
-    t0.INVESTMENT_SUPPORT AS "InvestmentSupport",
-    t0.ASSET_LIFE_YEAR AS "AssetLifeYear",
-    t0.ASSET_LIFE_MONTH AS "AssetLifeMonth",
-    t0.ASSET_ADDITION AS "AssetAddition",
-    t0.TRANSFERS AS "Transfers",
-    t0.ASSET_DISPOSAL AS "AssetDisposal",
-    t0.BOOK_VALUE_BEGIN AS "BookValueBegin", 
-    t0.DEPRECIATION_METHOD AS "DepreciationMethod",
-    t0.DEPRECIATION_PERCENTAGE AS "DepreciationPercentage",
-    t0.DEPRECIATION_FOR_PERIOD AS "DepreciationForPeriod",
+    t0.INVESTMENT_SUPPORT AS "InvestmentSupport",        -- Інвестиційна підтримка
+    
+    -- Параметри строку служби
+    t0.ASSET_LIFE_YEAR AS "AssetLifeYear",               -- Строк служби в роках
+    t0.ASSET_LIFE_MONTH AS "AssetLifeMonth",             -- Строк служби в місяцях
+    
+    -- Рухи по активу
+    t0.ASSET_ADDITION AS "AssetAddition",                -- Надходження активу
+    t0.TRANSFERS AS "Transfers",                         -- Переміщення активу
+    t0.ASSET_DISPOSAL AS "AssetDisposal",                -- Вибуття активу
+    
+    -- Балансова вартість та амортизація
+    t0.BOOK_VALUE_BEGIN AS "BookValueBegin",             -- Балансова вартість на початок
+    t0.DEPRECIATION_METHOD AS "DepreciationMethod",       -- Метод амортизації
+    t0.DEPRECIATION_PERCENTAGE AS "DepreciationPercentage", -- Відсоток амортизації
+    t0.DEPRECIATION_FOR_PERIOD AS "DepreciationForPeriod", -- Амортизація за period
+    
+    -- Дооцінка активу
     t0.APPRECIATION_METHOD AS "AppreciationMethod",
     t0.APPRECIATION_FOR_PERIOD AS "AppreciationForPeriod",
+    
+    -- Надзвичайна амортизація
     t1.EXTRAORDINARY_DEPRECIATION_METHOD AS "ExtraordinaryDepreciationMethod",
     t1.EXTRAORDINARY_DEPRECIATION_FOR_PERIOD AS "ExtraordinaryDepreciationForPeriod",
-    t0.ACCUMULATED_DEPRECIATION AS "AccumulatedDepreciation",
-    t0.BOOK_VALUE_END AS "BookValueEnd"
+    
+    t0.ACCUMULATED_DEPRECIATION AS "AccumulatedDepreciation", -- Накопичена амортизація
+    t0.BOOK_VALUE_END AS "BookValueEnd"                  -- Балансова вартість на кінець
+    
   FROM SAFT.T_SAFT_ASSET_VALUATION t0
   LEFT JOIN SAFT.T_SAFT_ASSET_VALUATION_PERIOD t1 ON t0.ID = t1.ASSET_VALUATION_ID
-  WHERE t0.ASSET_VALUATION_TYPE = 2
-    AND t0.VALUATION_CLASS IN (
-      'А2', 'А3', 'А3.1', 'А4', 'А4.1', 'А5', 'А5.1',
-      'А6', 'А7', 'А8', 'А9', 'А9.1', 'А12', 'А14',
-      'А15', 'А16', 'Н1', 'Н2', 'Н3', 'Н4', 'Н5', 'Н6'
+  WHERE 
+    t0.ASSET_VALUATION_TYPE = 2                          -- Тільки податкова оцінка
+    AND t0.VALUATION_CLASS IN (                          -- Фільтр по класах активів
+      'Д2', 'Д3', 'Д3.1', 'Д4', 'Д4.1', 'Д5', 'Д5.1',
+      'Д6', 'Д7', 'Д8', 'Д9', 'Д9.1', 'Д12', 'Д14',
+      'Д15', 'Д16', 'Д1', 'Д2', 'Д3', 'Д4', 'Д5', 'Д6'
     )
-    AND t0.DEPRECIATION_METHOD = 1
+    AND t0.DEPRECIATION_METHOD = 1                       -- Прямолінійний метод амортизації
 ),
 
+
+-- CTE 3: FORWARD_METHOD - Розрахунок податкової амортизації різними способами
+
 ForwardMethod AS (
-  SELECT a."Asset_ID",
-        a."AccountID",
-        a."AccountDescription",
-        a."Description",
-        a."DateOfAquisition",
-        a."StartUpDate",
-        a."DecommissionDate",
-        a."AssetDisposalDate",
-        v."AssetValuationType",
-        v."ValuationClass",
-        v."AcquisitionAndProductionCostsBegin",
-        v."AcquisitionAndProductionCostsEnd",
-        v."InvestmentSupport",
-        v."AssetLifeYear",
-        v."AssetLifeMonth",
-        v."AssetAddition",
-        v."Transfers",
-        v."AssetDisposal",
-        v."BookValueBegin",
-        v."DepreciationMethod",
-        v."DepreciationPercentage",
-        v."DepreciationForPeriod",
-        v."AppreciationMethod",
-        v."AppreciationForPeriod",
-        v."ExtraordinaryDepreciationMethod",
-        v."ExtraordinaryDepreciationForPeriod",
-        v."AccumulatedDepreciation",
-        v."BookValueEnd",
-        a."ResidualValue", 
+  SELECT 
+    -- Базова інформація про актив
+    a."Asset_ID",
+    a."AccountID",
+    a."AccountDescription",
+    a."Description",
+    a."DateOfAquisition",
+    a."StartUpDate",
+    a."DecommissionDate",
+    a."AssetDisposalDate",
+    
+    -- Дані з оцінки
+    v."AssetValuationType",
+    v."ValuationClass",
+    v."AcquisitionAndProductionCostsBegin",
+    v."AcquisitionAndProductionCostsEnd",
+    v."InvestmentSupport",
+    v."AssetLifeYear",
+    v."AssetLifeMonth",
+    v."AssetAddition",
+    v."Transfers",
+    v."AssetDisposal",
+    v."BookValueBegin",
+    v."DepreciationMethod",
+    v."DepreciationPercentage",
+    v."DepreciationForPeriod",
+    v."AppreciationMethod",
+    v."AppreciationForPeriod",
+    v."ExtraordinaryDepreciationMethod",
+    v."ExtraordinaryDepreciationForPeriod",
+    v."AccumulatedDepreciation",
+    v."BookValueEnd",
+    a."ResidualValue",
    
-    /* перерахунок податкової амортизації активів, які використовувались протягом усього періоду */
+    
+    -- РОЗРАХУНОК 1: Амортизація активів, що використовувались протягом періоду
+
     CASE
       WHEN v."AcquisitionAndProductionCostsBegin" > 0
         AND v."AcquisitionAndProductionCostsEnd" > 0
-        AND a."StartUpDate" < DATE :startdate
-        AND a."DecommissionDate" is NULL
-        AND a."AssetDisposalDate" is NULL
+        AND a."StartUpDate" < DATE :startdate              -- Актив був введений до початку періоду
+        AND a."DecommissionDate" IS NULL                   -- Актив не виведений з експлуатації
+        AND a."AssetDisposalDate" IS NULL                  -- Актив не списаний
       THEN
         CASE
+          -- Розрахунок через роки
           WHEN v."AssetLifeYear" <> 0 THEN
             (v."AcquisitionAndProductionCostsBegin" - a."ResidualValue")
             / (v."AssetLifeYear" * 12)
             * (MONTHS_BETWEEN(DATE :enddate, DATE :startdate) + 1)
+          -- Розрахунок через місяці
           ELSE
             (v."AcquisitionAndProductionCostsBegin" - a."ResidualValue")
             / v."AssetLifeMonth"
@@ -101,18 +132,22 @@ ForwardMethod AS (
       ELSE 0
     END AS "CalculatedDepreciation",
   
-    /* перерахунок податкової амортизації активів, які надійшли протягом періоду */
+    
+    -- РОЗРАХУНОК 2: Амортизація активів, що надійшли протягом періоду
+    
     CASE
       WHEN v."AssetAddition" > 0
-        AND a."StartUpDate" > DATE :startdate
+        AND a."StartUpDate" > DATE :startdate              -- Актив введений в періоді
         AND a."DecommissionDate" IS NULL
         AND a."AssetDisposalDate" IS NULL
       THEN
         CASE
+          -- Розрахунок через роки
           WHEN v."AssetLifeYear" <> 0 THEN
             (v."AssetAddition" - a."ResidualValue")
             / (v."AssetLifeYear" * 12)
             * MONTHS_BETWEEN(DATE :enddate, ADD_MONTHS(a."StartUpDate", 1))
+          -- Розрахунок через місяці
           ELSE
             (v."AssetAddition" - a."ResidualValue")
             / v."AssetLifeMonth"
@@ -121,19 +156,23 @@ ForwardMethod AS (
     ELSE 0
     END AS "CalculatedDepreciation_Addition",
     
-    /* перерахунок податкової амортизації активів, які вибули/виведені з експлуатації протягом періоду */
+    
+    -- РОЗРАХУНОК 3: Амортизація активів, що вибули/виведені протягом періоду
+    
     CASE
       WHEN 
-        (v."Transfers" < 0 OR v."AssetDisposal" > 0)
+        (v."Transfers" < 0 OR v."AssetDisposal" > 0)       -- Є вибуття активу
         AND (a."DecommissionDate" >= DATE :startdate OR a."DecommissionDate" IS NULL)
         AND (a."AssetDisposalDate" >= DATE :startdate OR a."AssetDisposalDate" IS NULL)
         AND (a."DecommissionDate" IS NOT NULL OR a."AssetDisposalDate" IS NOT NULL)
       THEN
         CASE
+          -- Розрахунок через роки
           WHEN v."AssetLifeYear" <> 0 THEN
             (v."AcquisitionAndProductionCostsBegin" - a."ResidualValue")
             / (v."AssetLifeYear" * 12) *
           CASE 
+            -- Вибираємо раніше з двох дат
             WHEN a."DecommissionDate" >= DATE :startdate 
                  AND (a."DecommissionDate" <= a."AssetDisposalDate" OR a."AssetDisposalDate" IS NULL) THEN 
               MONTHS_BETWEEN(ADD_MONTHS(a."DecommissionDate",1), DATE :startdate) + 1
@@ -141,6 +180,7 @@ ForwardMethod AS (
               MONTHS_BETWEEN(ADD_MONTHS(a."AssetDisposalDate",1), DATE :startdate) + 1
           END
         ELSE
+          -- Розрахунок через місяці
             (v."AcquisitionAndProductionCostsBegin" - a."ResidualValue")
             / v."AssetLifeMonth"
             * CASE 
@@ -154,16 +194,20 @@ ForwardMethod AS (
     ELSE 0
     END AS "CalculatedDepreciation_Disposal",
     
-    /* перерахунок податкової амортизації поліпшень активів протягом періоду (максимальна сума) */
+    
+    -- РОЗРАХУНОК 4: Амортизація інвестиційної підтримки (поліпшень) активів
+    
     CASE
       WHEN v."InvestmentSupport" > 0
         AND a."StartUpDate" < DATE :startdate
       THEN
         CASE
+          -- Розрахунок через роки
           WHEN v."AssetLifeYear" <> 0 THEN
             (v."InvestmentSupport")
             / (v."AssetLifeYear" * 12)
             * (MONTHS_BETWEEN(DATE :enddate, DATE :startdate) + 1)
+          -- Розрахунок через місяці
           ELSE
             (v."InvestmentSupport")
             / v."AssetLifeMonth"
@@ -176,18 +220,24 @@ ForwardMethod AS (
   LEFT JOIN Valuation v ON a."ID" = v."Asset_ID"
 ),
   
-/* перерахунок податкової амортизації за період (загальна сума)  */
+
+-- CTE 4: TOTAL_CALCULATED - Загальний розрахунок амортизації за період
+
 TotalCalculated AS (
-SELECT f.*,
+  SELECT f.*,
+        -- Сума всіх видів розрахованої амортизації
         COALESCE(f."CalculatedDepreciation", 0)
       + COALESCE(f."CalculatedDepreciation_Addition",0)
       + COALESCE(f."CalculatedDepreciation_Disposal",0)
       + COALESCE(f."CalculatedDepreciation_Investment",0) AS "TotalCalculatedDepreciation"
-FROM ForwardMethod f
-
+  FROM ForwardMethod f
 )
 
+
+-- ОСНОВНИЙ ЗАПИТ: Розрахунок корпоративного податку на прибуток
+
 SELECT t.*,
+        -- Розрахунок корпоративного податку 18% з різниці амортизації
         CASE 
           WHEN (COALESCE(t."DepreciationForPeriod", 0) - t."TotalCalculatedDepreciation") > 100 THEN 
             (COALESCE(t."DepreciationForPeriod", 0) - t."TotalCalculatedDepreciation") * 0.18 
@@ -195,43 +245,52 @@ SELECT t.*,
         END AS "CorporateIncomeTax18%"
 FROM TotalCalculated t
 
+
+-- ПІДСУМКОВІ РЯДКИ: Агрегація всіх показників
+
 UNION ALL 
 
 SELECT 
-    NULL, -- AS "Asset_ID",
-    NULL, -- AS "AccountID",
-    NULL, -- AS "AccountDescription",
-    NULL, -- AS "Description",
-    NULL, -- AS "DateOfAquisition",
-    NULL, -- AS "StartUpDate",
-    NULL, -- AS "DecommissionDate",
-    NULL, -- AS "AssetDisposalDate",
-    NULL, -- AS "AssetValuationType",
-    'TOTAL' AS "ValuationClass",
-    SUM(t."AcquisitionAndProductionCostsBegin"),
-    SUM(t."AcquisitionAndProductionCostsEnd"),
-    SUM(t."InvestmentSupport"),
-    NULL, -- AssetLifeYear
-    NULL, -- AssetLifeMonth
-    SUM(t."AssetAddition"),
-    SUM(t."Transfers"),
-    SUM(t."AssetDisposal"),
-    SUM(t."BookValueBegin"),
-    NULL, -- DepreciationMethod
-    NULL, -- DepreciationPercentage
-    SUM(t."DepreciationForPeriod"),
-    NULL, -- AppreciationMethod
-    SUM(t."AppreciationForPeriod"),
-    NULL, -- ExtraordinaryDepreciationMethod
-    SUM(t."ExtraordinaryDepreciationForPeriod"),
-    SUM(t."AccumulatedDepreciation"),
-    SUM(t."BookValueEnd"),
-    SUM(t."ResidualValue"),
-    SUM(t."CalculatedDepreciation"),
-    SUM(t."CalculatedDepreciation_Addition"),
-    SUM(t."CalculatedDepreciation_Disposal"),
-    SUM(t."CalculatedDepreciation_Investment"),
-    SUM(t."TotalCalculatedDepreciation"),
+    NULL AS "Asset_ID",
+    NULL AS "AccountID", 
+    NULL AS "AccountDescription",
+    NULL AS "Description",
+    NULL AS "DateOfAquisition",
+    NULL AS "StartUpDate",
+    NULL AS "DecommissionDate",
+    NULL AS "AssetDisposalDate",
+    NULL AS "AssetValuationType",
+    'TOTAL' AS "ValuationClass",                         -- Маркер підсумкового рядка
+    
+    -- Агрегація всіх вартісних показників
+    SUM(t."AcquisitionAndProductionCostsBegin") AS "AcquisitionAndProductionCostsBegin",
+    SUM(t."AcquisitionAndProductionCostsEnd") AS "AcquisitionAndProductionCostsEnd",
+    SUM(t."InvestmentSupport") AS "InvestmentSupport",
+    NULL AS "AssetLifeYear",
+    NULL AS "AssetLifeMonth", 
+    SUM(t."AssetAddition") AS "AssetAddition",
+    SUM(t."Transfers") AS "Transfers",
+    SUM(t."AssetDisposal") AS "AssetDisposal",
+    SUM(t."BookValueBegin") AS "BookValueBegin",
+    NULL AS "DepreciationMethod",
+    NULL AS "DepreciationPercentage",
+    SUM(t."DepreciationForPeriod") AS "DepreciationForPeriod",
+    NULL AS "AppreciationMethod",
+    SUM(t."AppreciationForPeriod") AS "AppreciationForPeriod",
+    NULL AS "ExtraordinaryDepreciationMethod",
+    SUM(t."ExtraordinaryDepreciationForPeriod") AS "ExtraordinaryDepreciationForPeriod",
+    SUM(t."AccumulatedDepreciation") AS "AccumulatedDepreciation",
+    SUM(t."BookValueEnd") AS "BookValueEnd",
+    SUM(t."ResidualValue") AS "ResidualValue",
+    
+    -- Агрегація розрахованих значень амортизації
+    SUM(t."CalculatedDepreciation") AS "CalculatedDepreciation",
+    SUM(t."CalculatedDepreciation_Addition") AS "CalculatedDepreciation_Addition", 
+    SUM(t."CalculatedDepreciation_Disposal") AS "CalculatedDepreciation_Disposal",
+    SUM(t."CalculatedDepreciation_Investment") AS "CalculatedDepreciation_Investment",
+    SUM(t."TotalCalculatedDepreciation") AS "TotalCalculatedDepreciation",
+    
+    -- Загальна сума корпоративного податку
     SUM(
         CASE 
           WHEN (COALESCE(t."DepreciationForPeriod", 0) - t."TotalCalculatedDepreciation") > 100 THEN 
@@ -239,4 +298,4 @@ SELECT
           ELSE 0 
         END
     ) AS "CorporateIncomeTax18%"
-FROM TotalCalculated t
+FROM TotalCalculated t;
