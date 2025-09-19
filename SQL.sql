@@ -6,7 +6,7 @@ WITH Asset AS (
     t0.ASSETID AS "Asset_ID",
     t0.ACCOUNTID AS "AccountID",
     t1.ACCOUNT_DESCRIPTION AS "AccountDescription",
-    t0.DESCRIPTION AS "Description",
+    t0.DESCRIPTION AS "Description", 
     t0.DATE_OF_AQUISITION AS "DateOfAquisition",
     t0.START_UP_DATE AS "StartUpDate",                   -- Start Date of Use
     t0.DECOMMISSION_DATE AS "DecommissionDate",          -- Date of Decommissioning
