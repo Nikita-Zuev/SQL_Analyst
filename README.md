@@ -1,11 +1,10 @@
-# Аналіз податкової амортизації основних засобів підприємства
+# Analysis of a Company's Tax Depreciation of Fixed Assets
 
-## Мета запиту
-SQL-запит для детального розрахунку та аналізу податкової амортизації основних засобів підприємства. Враховує різні сценарії використання активів (повний період, частковий період, виведення з експлуатації).
+## The Purpose of the Query
+SQL query for a detailed calculation and analysis of a company's tax depreciation of fixed assets. It considers different scenarios for asset use (full period, partial period, and decommissioning).
 
 
-
-## Ключові етапи
+## Key Stages
 
 1.  **Збір даних**: Об'єднання інформації про активи, їхню вартість, строк використання та метод амортизації за допомогою `LEFT JOIN`.
 
