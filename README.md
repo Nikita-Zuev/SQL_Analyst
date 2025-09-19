@@ -28,6 +28,6 @@ SQL query for a detailed calculation and analysis of a company's tax depreciatio
 
 
 
-* ## Technical Requirements
+## Technical Requirements
      * DBMS: Oracle
      * Parameters: Mandatory start and end date parameters for the period
