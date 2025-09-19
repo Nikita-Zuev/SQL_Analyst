@@ -8,7 +8,7 @@ WITH Asset AS (
     t1.ACCOUNT_DESCRIPTION AS "AccountDescription",
     t0.DESCRIPTION AS "Description",
     t0.DATE_OF_AQUISITION AS "DateOfAquisition",
-    t0.START_UP_DATE AS "StartUpDate",                    -- Start Date of Use
+    t0.START_UP_DATE AS "StartUpDate",                   -- Start Date of Use
     t0.DECOMMISSION_DATE AS "DecommissionDate",          -- Date of Decommissioning
     t0.ASSET_DISPOSAL_DATE AS "AssetDisposalDate",       -- Date of Sale/Write-off
     t0.RESIDUAL_VALUE AS "ResidualValue"                 -- Residual Value
