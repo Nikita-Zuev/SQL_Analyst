@@ -26,8 +26,6 @@ SQL query for a detailed calculation and analysis of a company's tax depreciatio
       * Using `:selection_start_date` and `:selection_end_date` parameters for flexibility.
       * Optimizing `JOIN` operations by moving the selection of main fields to the final `CTE`.
 
-
-
 ## Technical Requirements
-     * DBMS: Oracle
-     * Parameters: Mandatory start and end date parameters for the period
+* DBMS: Oracle
+* Parameters: Mandatory start and end date parameters for the period
