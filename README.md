@@ -6,29 +6,28 @@ SQL query for a detailed calculation and analysis of a company's tax depreciatio
 
 ## Key Stages
 
-1.  **Збір даних**: Об'єднання інформації про активи, їхню вартість, строк використання та метод амортизації за допомогою `LEFT JOIN`.
+1.  **Data Collection:** Combining information about assets, their value, service life, and depreciation method using a `LEFT JOIN`.
 
-2.  **Розрахунок амортизації**: Використання конструкції `CASE WHEN` для обчислення амортизації з урахуванням різних ситуацій:
-    * Повний робочий період.
-    * Введення в експлуатацію впродовж періоду.
-    * Виведення з експлуатації або поліпшення.
+2.  **Depreciation Calculation:** Using the `CASE WHEN` statement to calculate depreciation, considering different situations:
+      * Full operating period.
+      * Commissioning during the period.
+      * Decommissioning or improvement.
 
-3.  **Формування підсумків**: Агрегація даних за допомогою `SUM` і `AVG`. Додавання підсумкового рядка "TOTAL" за допомогою `UNION ALL`.
-
-
-
-## Обробка помилок та оптимізація
-
-* **Обробка помилок**: Застосування `COALESCE()` для заміни `NULL` на дефолтні значення (`0` або `1`). Умови у `CASE WHEN` перевіряють наявність даних та їхню відповідність бізнес-логіці.
-
-* **Оптимізація**:
-    * Розбиття логіки на кілька `CTE` для поліпшення читабельності та підтримки.
-    * Використання параметрів `:selection_start_date` та `:selection_end_date` для гнучкості.
-    * Оптимізація `JOIN` операцій шляхом перенесення вибірки основних полів до фінального `CTE`.
+3.  **Summary Formation:** Aggregating data using `SUM` and `AVG`. Adding a "TOTAL" summary row with `UNION ALL`.
 
 
 
-* ## Технічні вимоги
+## **Error Handling and Optimization**
 
-    * СУБД: Oracle
-    * Параметри: Обов'язкові параметри початкової та кінцевої дати періоду
+* **Error Handling:** Using `COALESCE()` to replace `NULL` with default values (`0` or `1`). `CASE WHEN` conditions check for data presence and whether they match business logic.
+
+* **Optimization**:
+      * Breaking down the logic into several `CTE`s to improve readability and maintenance.
+      * Using `:selection_start_date` and `:selection_end_date` parameters for flexibility.
+      * Optimizing `JOIN` operations by moving the selection of main fields to the final `CTE`.
+
+
+
+* ## Technical Requirements
+     * DBMS: Oracle
+     * Parameters: Mandatory start and end date parameters for the period
